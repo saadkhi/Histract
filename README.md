@@ -1,2 +1,2 @@
 # Histract
-Histract is an open source system which help to extract data from the old documents. It currently support less number of languages. 
+Histract is an open source system which help to extract data from the old documents.
