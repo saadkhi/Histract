@@ -23,7 +23,7 @@ from rest_framework.routers import DefaultRouter
 from core.views import ChatHistoryViewSet, ChatView, FeedbackView
 
 router = DefaultRouter()
-router.register(r'chats', ChatHistoryViewSet)
+router.register(r'chats', ChatHistoryViewSet, basename='chat')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

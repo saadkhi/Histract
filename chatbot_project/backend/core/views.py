@@ -6,6 +6,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.vector_store import FAISSVectorStore
 from core.models import ChatHistory, Message
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
 
 class ChatView(APIView):
     permission_classes = [IsAuthenticated]
@@ -44,4 +48,42 @@ class ChatView(APIView):
             'response': response,
             'chat_id': chat_id
         })
+
+
+class ChatHistoryViewSet(viewsets.ModelViewSet):
+    serializer_class = None  # You'll need to create and specify a serializer
+    permission_classes = [IsAuthenticated]
+    queryset = ChatHistory.objects.none()  # Default empty queryset
+
+    def get_queryset(self):
+        return ChatHistory.objects.filter(user=self.request.user).order_by('-created_at')
+
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        chat = self.get_object()
+        messages = chat.messages.all().order_by('timestamp')
+        # You'll need to create and specify a MessageSerializer
+        return Response([{
+            'id': msg.id,
+            'content': msg.content,
+            'is_user': msg.is_user,
+            'timestamp': msg.timestamp,
+            'needs_review': msg.needs_review
+        } for msg in messages])
+
+
+class FeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        message_id = request.data.get('message_id')
+        feedback = request.data.get('feedback')
+        
+        try:
+            message = Message.objects.get(id=message_id, chat__user=request.user)
+            message.feedback = feedback
+            message.save()
+            return Response({'status': 'feedback saved'}, status=status.HTTP_200_OK)
+        except Message.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
 
