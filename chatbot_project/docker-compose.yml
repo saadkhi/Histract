@@ -1,16 +1,36 @@
 # docker-compose.yml
-version: '3.8'
+version: '3.9'
+
 services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: chatbot_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
+  backend:
+    build: ./backend
+    command: sh -c "
+      python manage.py migrate &&
+      python manage.py load_knowledge &&
+      celery -A chatbot_backend worker -l info &
+      celery -A chatbot_backend beat -l info &
+      gunicorn chatbot_backend.wsgi:application --bind 0.0.0.0:8000
+      "
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./backend:/app
+      - faiss_data:/app/vector_store
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
   redis:
     image: redis:7
@@ -18,4 +38,4 @@ services:
       - "6379:6379"
 
 volumes:
-  postgres_data:
+  faiss_data:
